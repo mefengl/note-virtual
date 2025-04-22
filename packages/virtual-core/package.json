@@ -1,19 +1,31 @@
 {
+  "_comment_name": "包名，就像这个软件包的名字。必须是唯一的，并且通常带有作用域 (比如 @tanstack/) 来避免命名冲突。",
   "name": "@tanstack/virtual-core",
+  "_comment_version": "包的版本号。遵循语义化版本规范 (SemVer: 主版本号.次版本号.修订号)。每次发布新功能或修复 bug 时都需要更新。",
   "version": "3.13.6",
+  "_comment_description": "对这个包功能的简短描述，帮助人们快速了解它的作用。",
   "description": "Headless UI for virtualizing scrollable elements in TS/JS + Frameworks",
+  "_comment_author": "包的作者。",
   "author": "Tanner Linsley",
+  "_comment_license": "包的开源许可证。MIT 是一种非常宽松的许可证。",
   "license": "MIT",
+  "_comment_repository": "代码仓库的信息，方便别人找到源码、提 issue 或贡献代码。",
   "repository": {
+    "_comment_type": "仓库类型，这里是 git。",
     "type": "git",
+    "_comment_url": "仓库的 URL 地址。",
     "url": "https://github.com/TanStack/virtual.git",
+    "_comment_directory": "指明这个包在仓库中的具体子目录。",
     "directory": "packages/virtual-core"
   },
+  "_comment_homepage": "项目的主页或文档网站的链接。",
   "homepage": "https://tanstack.com/virtual",
+  "_comment_funding": "提供项目资金支持的方式和链接。",
   "funding": {
     "type": "github",
     "url": "https://github.com/sponsors/tannerlinsley"
   },
+  "_comment_keywords": "一些描述这个包的关键词，方便在 npm 上被搜索到。",
   "keywords": [
     "react",
     "vue",
@@ -22,19 +34,30 @@
     "virtual-core",
     "datagrid"
   ],
+  "_comment_scripts": "定义了一系列可以通过 `pnpm run <script_name>` (或 npm/yarn) 执行的命令脚本。",
   "scripts": {
+    "_comment_clean": "清理命令，通常用于删除构建产物 (dist) 和测试覆盖率报告 (coverage) 目录。",
     "clean": "premove ./dist ./coverage",
+    "_comment_test_eslint": "运行 ESLint 检查 src 目录下的代码风格和潜在错误。",
     "test:eslint": "eslint ./src",
+    "_comment_test_types": "运行 TypeScript 编译器 (tsc) 进行类型检查，确保没有类型错误。",
     "test:types": "tsc",
+    "_comment_test_lib": "运行 Vitest 测试框架来执行单元测试或集成测试。",
     "test:lib": "vitest",
+    "_comment_test_lib_dev": "以监视模式运行 Vitest 测试，文件变化时自动重新测试，方便开发。",
     "test:lib:dev": "pnpm run test:lib --watch",
+    "_comment_test_build": "使用 publint 工具检查包的发布配置是否符合最佳实践 (例如入口点、类型声明等)。",
     "test:build": "publint --strict",
+    "_comment_build": "使用 Vite 构建工具来打包生成最终的 JavaScript 代码。",
     "build": "vite build"
   },
+  "_comment_type": "指定包的代码模块系统。\"module\" 表示默认使用 ES Modules (import/export)。",
   "type": "module",
+  "_comment_types": "指向包的主 TypeScript 声明文件 (.d.ts)。这个文件定义了包导出的所有类型信息，供 TypeScript 用户使用。",
   "types": "dist/esm/index.d.ts",
-  "main": "dist/cjs/index.cjs",
+  "_comment_module": "ES Modules 规范的入口文件。当其他项目使用 `import ... from '@tanstack/virtual-core'` 时，并且环境支持 ES Modules 时，会优先加载这个文件。这里指向 ES Module 格式的构建产物。",
   "module": "dist/esm/index.js",
+  "_comment_exports": "更现代、更精细地定义包的入口点的方式。Node.js 优先使用这个字段而非 main/module。 '.' 代表根入口。 'import' 条件定义了 ES Modules 环境下的入口 (类型声明 types 和默认 default js 文件)。 'require' 条件定义了 CommonJS 环境下的入口 (类型声明 types 和默认 default js 文件)。'./package.json' 允许直接导入 package.json 文件。",
   "exports": {
     ".": {
       "import": {
@@ -48,6 +71,7 @@
     },
     "./package.json": "./package.json"
   },
+  "_comment_sideEffects": "声明这个包是否包含 \"副作用\"。`false` 表示导入这个包不会执行任何影响全局环境或执行初始化代码的操作。这有助于打包工具 (如 Webpack, Rollup) 进行更有效的 Tree Shaking (移除未使用的代码)。",
   "sideEffects": false,
   "files": [
     "dist",

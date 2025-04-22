@@ -1,27 +1,53 @@
 {
+  // 指定 JSON Schema 的 URL，用于编辑器验证和自动补全 tsconfig.json 的配置项。
   "$schema": "https://json.schemastore.org/tsconfig",
+
+  // 这个对象包含了 TypeScript 编译器的核心配置选项。
   "compilerOptions": {
+    // 是否允许编译器编译 JavaScript 文件 (.js 或 .jsx)。设置为 true，方便混合使用 TS 和 JS。
     "allowJs": true,
+    // 允许从没有默认导出的模块中默认导入。这主要用于改善与旧式 CommonJS 模块的互操作性。
     "allowSyntheticDefaultImports": true,
+    // 是否报告不可达代码错误。设置为 false (默认) 会报告错误。
     "allowUnreachableCode": false,
+    // 是否报告未使用的标签错误。设置为 false (默认) 会报告错误。
     "allowUnusedLabels": false,
+    // 在 .js 文件中报告错误。需要同时启用 allowJs。设置为 true 以在 JS 文件中进行类型检查。
     "checkJs": true,
+    // 是否为每个编译的 TypeScript 文件生成相应的 .d.ts 声明文件。这对于库项目非常重要，因为它定义了库的类型接口。
     "declaration": true,
+    // 通过为所有导入创建命名空间对象，实现 CommonJS 和 ES 模块之间的互操作性。强烈建议启用。
     "esModuleInterop": true,
+    // 强制文件名大小写一致。设置为 true 有助于避免在大小写不敏感的文件系统上出现问题。
     "forceConsistentCasingInFileNames": true,
+    // 确保每个文件都可以安全地、独立地进行转译 (transpile)，没有对其他导入的类型信息产生非本地依赖。通常与 Babel 等转译器一起使用时需要设置为 true。
     "isolatedModules": true,
+    // 指定编译过程中需要包含的库文件。'DOM' 提供浏览器环境的类型，'DOM.Iterable' 提供 DOM 集合的迭代器支持，'ES2022' 提供 ES2022 的特性。
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    // 指定生成的 JavaScript 代码使用的模块系统。'ES2022' 表示使用最新的 ECMAScript 模块标准。
     "module": "ES2022",
+    // 指定模块解析策略。'Bundler' 是较新的选项，旨在模仿现代打包工具 (如 Vite, esbuild, Webpack) 的解析行为，比 'Node' 或 'NodeNext' 更适合现代前端开发。
     "moduleResolution": "Bundler",
+    // 是否不生成输出文件 (JavaScript 代码、.d.ts 文件、source maps)。设置为 true 表示 TypeScript 编译器仅用于类型检查，实际的代码生成由其他工具 (如 Babel, Vite, SWC) 完成。
     "noEmit": true,
+    // 检查函数的所有代码路径是否都有返回值。设置为 true 有助于防止忘记返回值的错误。
     "noImplicitReturns": true,
+    // 在使用索引签名访问对象属性时，会在类型中加入 'undefined'。例如，obj[key] 的类型会是 T | undefined 而不是 T。这能帮助发现潜在的访问不存在属性的错误。
     "noUncheckedIndexedAccess": true,
+    // 检查是否存在未使用的局部变量。设置为 false 表示不报告此错误。
     "noUnusedLocals": false,
+    // 检查是否存在未使用的函数参数。设置为 false 表示不报告此错误。
     "noUnusedParameters": false,
+    // 允许导入 .json 文件，并将其内容解析为类型安全的 JSON 对象。
     "resolveJsonModule": true,
+    // 跳过对所有声明文件 (.d.ts) 的类型检查。设置为 true 可以显著加快编译速度，尤其是在有大量依赖的项目中。
     "skipLibCheck": true,
+    // 启用所有严格类型检查选项，包括 noImplicitAny, noImplicitThis, alwaysStrict, strictNullChecks, strictBindCallApply 和 strictFunctionTypes 等。强烈建议保持为 true 以获得更好的类型安全。
     "strict": true,
+    // 指定编译后的 JavaScript 代码的目标 ECMAScript 版本。'ES2020' 表示代码将兼容支持 ES2020 标准的环境。
     "target": "ES2020"
   },
+
+  // 指定编译器需要包含的文件或目录。这里包含了 ESLint 和 Prettier 的配置文件，以及 scripts 目录下的脚本文件，可能是为了让 TS Language Server 或类型检查器也能处理这些文件。
   "include": ["eslint.config.js", "prettier.config.js", "scripts"]
 }

@@ -1,7 +1,33 @@
+# pnpm-workspace.yaml 文件用于定义 pnpm (高性能 npm 客户端) 管理的 monorepo 工作区。
+# Monorepo 指的是在一个代码仓库中管理多个相互关联的包或项目。
+# 这个文件告诉 pnpm 在哪些目录下查找子包 (package)。
+
 packages:
+  # 'packages' 字段是一个数组，列出了包含子包的目录路径模式 (glob patterns)。
+  # pnpm 会在这些匹配的目录下查找 package.json 文件，并将它们识别为工作区内的包。
+
   - 'packages/*'
+  # 这条规则表示 'packages/' 目录下的所有直接子目录都被视为工作区包。
+  # 这是最常见的配置，通常核心库和框架适配器会放在这里。
+  # 例如： packages/virtual-core, packages/react-virtual 等。
+
   - 'examples/angular/*'
+  # 将 'examples/angular/' 目录下的所有直接子目录也视为工作区包。
+  # 这意味着 Angular 相关的示例项目也作为独立的包被 pnpm 管理。
+
   - 'examples/react/*'
+  # 将 'examples/react/' 目录下的所有直接子目录视为工作区包 (React 示例)。
+
   - 'examples/svelte/*'
+  # 将 'examples/svelte/' 目录下的所有直接子目录视为工作区包 (Svelte 示例)。
+
   - 'examples/vue/*'
+  # 将 'examples/vue/' 目录下的所有直接子目录视为工作区包 (Vue 示例)。
+
   - 'examples/lit/*'
+  # 将 'examples/lit/' 目录下的所有直接子目录视为工作区包 (Lit 示例)。
+
+# 通过这种方式定义工作区，pnpm 可以：
+# 1. 在根目录通过 `pnpm install` 一次性安装所有包的依赖。
+# 2. 高效地处理包之间的本地链接 (symlinks)，方便本地开发和调试。
+# 3. 使用 `pnpm --filter <package_name> run <script>` 等命令在特定包或一组包上执行脚本。

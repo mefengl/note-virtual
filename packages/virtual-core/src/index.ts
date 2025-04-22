@@ -1,87 +1,104 @@
 import { approxEqual, debounce, memo, notUndefined } from './utils'
 
+// Re-export utilities from './utils'
 export * from './utils'
 
-//
+// Type definitions
 
+/** Scroll direction: forward (down/right) or backward (up/left) */
 type ScrollDirection = 'forward' | 'backward'
 
+/** Scroll alignment: how an item aligns with the container */
 type ScrollAlignment = 'start' | 'center' | 'end' | 'auto'
 
+/** Scroll behavior: instant ('auto') or smooth */
 type ScrollBehavior = 'auto' | 'smooth'
 
+/** Options for scrollTo methods */
 export interface ScrollToOptions {
+  /** Desired alignment. @default 'start' */
   align?: ScrollAlignment
+  /** Scroll behavior. @default 'auto' */
   behavior?: ScrollBehavior
 }
 
+/** Options for scrollToOffset */
 type ScrollToOffsetOptions = ScrollToOptions
 
+/** Options for scrollToIndex */
 type ScrollToIndexOptions = ScrollToOptions
 
+/** Represents the range of items to render, including overscan */
 export interface Range {
   startIndex: number
   endIndex: number
-  overscan: number
-  count: number
+  overscan: number // Number of items to render before/after visible items
+  count: number // Total number of items
 }
 
+/** Type for unique item identifiers (keys) */
 type Key = number | string | bigint
 
+/** Represents a virtualized item in the list/grid */
 export interface VirtualItem {
-  key: Key
-  index: number
-  start: number
-  end: number
-  size: number
-  lane: number
+  key: Key // Unique key for the item
+  index: number // Original index in the data array
+  start: number // Starting offset (px) in the scroll container
+  end: number // Ending offset (px) in the scroll container
+  size: number // Measured size (height/width) of the item
+  lane: number // Lane index for grid layout (0 for lists)
 }
 
+/** Represents the dimensions of a rectangle (e.g., scroll container) */
 export interface Rect {
   width: number
   height: number
 }
 
-//
+// Default functions
 
-export const defaultKeyExtractor = (index: number) => index
+/** Default function to get an item's key (uses its index) */
+export const defaultKeyExtractor = (index: number): Key => index
 
-export const defaultRangeExtractor = (range: Range) => {
+/**
+ * Default function to calculate the range of indices to render.
+ * Includes items within the overscan range.
+ */
+export const defaultRangeExtractor = (range: Range): number[] => {
   const start = Math.max(range.startIndex - range.overscan, 0)
   const end = Math.min(range.endIndex + range.overscan, range.count - 1)
-
   const arr = []
-
   for (let i = start; i <= end; i++) {
     arr.push(i)
   }
-
   return arr
 }
 
+// Observer functions
+
+/**
+ * Observes an Element's dimensions using ResizeObserver.
+ * @param instance Virtualizer instance
+ * @param cb Callback function with the new Rect
+ * @returns Cleanup function to stop observing
+ */
 export const observeElementRect = <T extends Element>(
   instance: Virtualizer<T, any>,
   cb: (rect: Rect) => void,
-) => {
+): (() => void) | undefined => {
   const element = instance.scrollElement
-  if (!element) {
-    return
-  }
+  if (!element) return
   const targetWindow = instance.targetWindow
-  if (!targetWindow) {
-    return
-  }
+  if (!targetWindow) return
 
   const handler = (rect: Rect) => {
     const { width, height } = rect
     cb({ width: Math.round(width), height: Math.round(height) })
   }
 
-  handler(element.getBoundingClientRect())
+  handler(element.getBoundingClientRect()) // Initial measurement
 
-  if (!targetWindow.ResizeObserver) {
-    return () => {}
-  }
+  if (!targetWindow.ResizeObserver) return () => {}
 
   const observer = new targetWindow.ResizeObserver((entries) => {
     const run = () => {
@@ -93,87 +110,83 @@ export const observeElementRect = <T extends Element>(
           return
         }
       }
-      handler(element.getBoundingClientRect())
+      handler(element.getBoundingClientRect()) // Fallback
     }
-
     instance.options.useAnimationFrameWithResizeObserver
-      ? requestAnimationFrame(run)
+      ? targetWindow.requestAnimationFrame(run)
       : run()
   })
 
   observer.observe(element, { box: 'border-box' })
 
-  return () => {
-    observer.unobserve(element)
-  }
+  return () => observer.unobserve(element)
 }
 
-const addEventListenerOptions = {
-  passive: true,
-}
+const addEventListenerOptions = { passive: true } // Options for better scroll performance
 
+/**
+ * Observes the Window's dimensions (for window scrolling).
+ * @param instance Virtualizer instance (Window scroll element)
+ * @param cb Callback function with the new Rect
+ * @returns Cleanup function to remove listener
+ */
 export const observeWindowRect = (
   instance: Virtualizer<Window, any>,
   cb: (rect: Rect) => void,
-) => {
+): (() => void) | undefined => {
   const element = instance.scrollElement
-  if (!element) {
-    return
-  }
+  if (!element) return
 
-  const handler = () => {
-    cb({ width: element.innerWidth, height: element.innerHeight })
-  }
-  handler()
+  const handler = () => cb({ width: element.innerWidth, height: element.innerHeight })
+  handler() // Initial measurement
 
   element.addEventListener('resize', handler, addEventListenerOptions)
-
-  return () => {
-    element.removeEventListener('resize', handler)
-  }
+  return () => element.removeEventListener('resize', handler)
 }
 
+// Check if the browser supports the 'scrollend' event
 const supportsScrollend =
   typeof window == 'undefined' ? true : 'onscrollend' in window
 
+/** Callback type for observing scroll offset changes */
 type ObserveOffsetCallBack = (offset: number, isScrolling: boolean) => void
 
+/**
+ * Observes an Element's scroll offset.
+ * Uses 'scroll' event and detects scroll end via 'scrollend' or debounce.
+ * @param instance Virtualizer instance
+ * @param cb Callback with current offset and scrolling state
+ * @returns Cleanup function to remove listeners
+ */
 export const observeElementOffset = <T extends Element>(
   instance: Virtualizer<T, any>,
   cb: ObserveOffsetCallBack,
-) => {
+): (() => void) | undefined => {
   const element = instance.scrollElement
-  if (!element) {
-    return
-  }
+  if (!element) return
   const targetWindow = instance.targetWindow
-  if (!targetWindow) {
-    return
-  }
+  if (!targetWindow) return
 
   let offset = 0
+  // Fallback to debounce if 'scrollend' is not supported/used
   const fallback =
     instance.options.useScrollendEvent && supportsScrollend
       ? () => undefined
-      : debounce(
-          targetWindow,
-          () => {
-            cb(offset, false)
-          },
-          instance.options.isScrollingResetDelay,
-        )
+      : debounce(targetWindow, () => cb(offset, false), instance.options.isScrollingResetDelay)
 
   const createHandler = (isScrolling: boolean) => () => {
     const { horizontal, isRtl } = instance.options
     offset = horizontal
       ? element['scrollLeft'] * ((isRtl && -1) || 1)
       : element['scrollTop']
-    fallback()
+    fallback() // Reset debounce timer or does nothing if using scrollend
     cb(offset, isScrolling)
   }
-  const handler = createHandler(true)
-  const endHandler = createHandler(false)
-  endHandler()
+
+  const handler = createHandler(true) // Handler for 'scroll'
+  const endHandler = createHandler(false) // Handler for 'scrollend' or debounce end
+
+  endHandler() // Initial offset calculation
 
   element.addEventListener('scroll', handler, addEventListenerOptions)
   const registerScrollendEvent =
@@ -181,6 +194,7 @@ export const observeElementOffset = <T extends Element>(
   if (registerScrollendEvent) {
     element.addEventListener('scrollend', endHandler, addEventListenerOptions)
   }
+
   return () => {
     element.removeEventListener('scroll', handler)
     if (registerScrollendEvent) {
@@ -189,39 +203,39 @@ export const observeElementOffset = <T extends Element>(
   }
 }
 
+/**
+ * Observes the Window's scroll offset.
+ * @param instance Virtualizer instance (Window scroll element)
+ * @param cb Callback with current offset and scrolling state
+ * @returns Cleanup function to remove listeners
+ */
 export const observeWindowOffset = (
   instance: Virtualizer<Window, any>,
   cb: ObserveOffsetCallBack,
-) => {
+): (() => void) | undefined => {
   const element = instance.scrollElement
-  if (!element) {
-    return
-  }
+  if (!element) return
   const targetWindow = instance.targetWindow
-  if (!targetWindow) {
-    return
-  }
+  if (!targetWindow) return
 
   let offset = 0
   const fallback =
     instance.options.useScrollendEvent && supportsScrollend
       ? () => undefined
-      : debounce(
-          targetWindow,
-          () => {
-            cb(offset, false)
-          },
-          instance.options.isScrollingResetDelay,
-        )
+      : debounce(targetWindow, () => cb(offset, false), instance.options.isScrollingResetDelay)
 
   const createHandler = (isScrolling: boolean) => () => {
-    offset = element[instance.options.horizontal ? 'scrollX' : 'scrollY']
+    const { horizontal, isRtl } = instance.options
+    offset = horizontal
+      ? (element['scrollX'] ?? element['pageXOffset']) * ((isRtl && -1) || 1)
+      : element['scrollY'] ?? element['pageYOffset']
     fallback()
     cb(offset, isScrolling)
   }
+
   const handler = createHandler(true)
   const endHandler = createHandler(false)
-  endHandler()
+  endHandler() // Initial offset
 
   element.addEventListener('scroll', handler, addEventListenerOptions)
   const registerScrollendEvent =
@@ -229,6 +243,7 @@ export const observeWindowOffset = (
   if (registerScrollendEvent) {
     element.addEventListener('scrollend', endHandler, addEventListenerOptions)
   }
+
   return () => {
     element.removeEventListener('scroll', handler)
     if (registerScrollendEvent) {
@@ -237,115 +252,182 @@ export const observeWindowOffset = (
   }
 }
 
-export const measureElement = <TItemElement extends Element>(
+// Measurement and scrolling functions
+
+/**
+ * Measures the size (width or height) of a virtual item's DOM element.
+ * Uses ResizeObserver entry if available, otherwise getBoundingClientRect.
+ * @param element The DOM element to measure
+ * @param entry Optional ResizeObserver entry
+ * @param instance Virtualizer instance
+ * @returns Measured size (px)
+ */
+export function measureElement<TItemElement extends Element>(
   element: TItemElement,
   entry: ResizeObserverEntry | undefined,
   instance: Virtualizer<any, TItemElement>,
-) => {
+): number {
   if (entry?.borderBoxSize) {
     const box = entry.borderBoxSize[0]
     if (box) {
-      const size = Math.round(
-        box[instance.options.horizontal ? 'inlineSize' : 'blockSize'],
-      )
+      const size = Math.round(instance.options.horizontal ? box.inlineSize : box.blockSize)
       return size
     }
   }
-  return Math.round(
-    element.getBoundingClientRect()[
-      instance.options.horizontal ? 'width' : 'height'
-    ],
-  )
+  const rect = element.getBoundingClientRect()
+  return Math.round(instance.options.horizontal ? rect.width : rect.height)
 }
 
-export const windowScroll = <T extends Window>(
+/**
+ * Scrolls the window to a specific offset.
+ * @param offset Target scroll offset (px)
+ * @param options Scroll options (adjustments, behavior)
+ * @param instance Virtualizer instance
+ */
+export function windowScroll<
+  TScrollElement extends Window,
+  TItemElement extends Element,
+>(
   offset: number,
-  {
-    adjustments = 0,
-    behavior,
-  }: { adjustments?: number; behavior?: ScrollBehavior },
-  instance: Virtualizer<T, any>,
-) => {
-  const toOffset = offset + adjustments
-
-  instance.scrollElement?.scrollTo?.({
-    [instance.options.horizontal ? 'left' : 'top']: toOffset,
+  options: { adjustments?: number; behavior?: ScrollBehavior },
+  instance: Virtualizer<TScrollElement, TItemElement>,
+): void {
+  const element = instance.scrollElement
+  const { horizontal, isRtl } = instance.options
+  const { adjustments = 0, behavior } = options
+  const finalOffset = offset + adjustments
+  element?.scrollTo?.({
+    [horizontal ? 'left' : 'top']: finalOffset * ((horizontal && isRtl && -1) || 1),
     behavior,
   })
 }
 
-export const elementScroll = <T extends Element>(
+/**
+ * Scrolls an Element to a specific offset.
+ * Uses element.scrollTo for smooth behavior, otherwise directly sets scrollTop/scrollLeft.
+ * @param offset Target scroll offset (px)
+ * @param options Scroll options (adjustments, behavior)
+ * @param instance Virtualizer instance
+ */
+export function elementScroll<
+  TScrollElement extends Element,
+  TItemElement extends Element,
+>(
   offset: number,
-  {
-    adjustments = 0,
-    behavior,
-  }: { adjustments?: number; behavior?: ScrollBehavior },
-  instance: Virtualizer<T, any>,
-) => {
-  const toOffset = offset + adjustments
-
-  instance.scrollElement?.scrollTo?.({
-    [instance.options.horizontal ? 'left' : 'top']: toOffset,
-    behavior,
-  })
+  options: { adjustments?: number; behavior?: ScrollBehavior },
+  instance: Virtualizer<TScrollElement, TItemElement>,
+): void {
+  const element = instance.scrollElement
+  const { horizontal, isRtl } = instance.options
+  const { adjustments = 0, behavior } = options
+  const finalOffset = offset + adjustments
+  if (behavior === 'smooth' && element?.scrollTo) {
+    element.scrollTo({
+      [horizontal ? 'left' : 'top']: finalOffset * ((horizontal && isRtl && -1) || 1),
+      behavior,
+    })
+  } else {
+    if (horizontal) {
+      element?.['scrollLeft'] = finalOffset * ((isRtl && -1) || 1)
+    } else {
+      element?.['scrollTop'] = finalOffset
+    }
+  }
 }
 
+/**
+ * Core options for creating a Virtualizer instance.
+ */
 export interface VirtualizerOptions<
   TScrollElement extends Element | Window,
   TItemElement extends Element,
 > {
-  // Required from the user
+  /** Total number of items [required] */
   count: number
+  /** Function returning the scroll element [required] */
   getScrollElement: () => TScrollElement | null
+  /** Function estimating item size (px) [required] */
   estimateSize: (index: number) => number
-
-  // Required from the framework adapter (but can be overridden)
-  scrollToFn: (
+  /** Custom function to perform scrolling */
+  scrollToFn?: (
     offset: number,
     options: { adjustments?: number; behavior?: ScrollBehavior },
     instance: Virtualizer<TScrollElement, TItemElement>,
   ) => void
-  observeElementRect: (
+  /** Scroll offset adjustment (px). @default 0 */
+  adjustments?: number
+  /** Default scroll behavior. @default 'auto' */
+  behavior?: ScrollBehavior
+  /** Custom function to observe element rect changes */
+  observeElementRect?: (
     instance: Virtualizer<TScrollElement, TItemElement>,
     cb: (rect: Rect) => void,
   ) => void | (() => void)
-  observeElementOffset: (
+  /** Custom function to observe element offset changes */
+  observeElementOffset?: (
     instance: Virtualizer<TScrollElement, TItemElement>,
     cb: ObserveOffsetCallBack,
   ) => void | (() => void)
-  // Optional
+  /** Enable debug logging. @default false */
   debug?: boolean
+  /** Initial rect for the scroll element */
   initialRect?: Rect
+  /** Callback when virtualizer state changes */
   onChange?: (
     instance: Virtualizer<TScrollElement, TItemElement>,
     sync: boolean,
   ) => void
+  /** Custom function to measure item elements */
   measureElement?: (
     element: TItemElement,
     entry: ResizeObserverEntry | undefined,
     instance: Virtualizer<TScrollElement, TItemElement>,
   ) => number
+  /** Number of items to render outside the viewport. @default 1 */
   overscan?: number
+  /** Enable horizontal scrolling. @default false */
   horizontal?: boolean
+  /** Padding at the start of the content (px). @default 0 */
   paddingStart?: number
+  /** Padding at the end of the content (px). @default 0 */
   paddingEnd?: number
+  /** Scroll container's start padding (affects alignment). @default 0 */
   scrollPaddingStart?: number
+  /** Scroll container's end padding (affects alignment). @default 0 */
   scrollPaddingEnd?: number
+  /** Initial scroll offset (px) or a function returning it. @default 0 */
   initialOffset?: number | (() => number)
+  /** Function to get a unique key for an item. @default index */
   getItemKey?: (index: number) => Key
+  /** Function to extract the range of indices to render. @default defaultRangeExtractor */
   rangeExtractor?: (range: Range) => Array<number>
+  /** Extra margin (px) for scroll alignment calculations. @default 0 */
   scrollMargin?: number
+  /** Gap between items (px). @default 0 */
   gap?: number
+  /** HTML attribute name for storing item index. @default 'data-index' */
   indexAttribute?: string
+  /** Initial item measurement cache */
   initialMeasurementsCache?: Array<VirtualItem>
+  /** Number of lanes for grid layout. @default 0 (list layout) */
   lanes?: number
+  /** Delay (ms) to detect scroll end if 'scrollend' isn't used. @default 50 */
   isScrollingResetDelay?: number
+  /** Use native 'scrollend' event if available. @default true */
   useScrollendEvent?: boolean
+  /** Enable/disable the virtualizer. @default true */
   enabled?: boolean
+  /** Right-to-left mode. @default false */
   isRtl?: boolean
+  /** Use requestAnimationFrame with ResizeObserver callback. @default true */
   useAnimationFrameWithResizeObserver?: boolean
 }
 
+// Virtualizer class
+
+/**
+ * Virtualizer class for efficient rendering of large lists/grids.
+ */
 export class Virtualizer<
   TScrollElement extends Element | Window,
   TItemElement extends Element,
